@@ -102,6 +102,9 @@ void memdisk_remove(char *filename)
 	if ((x = findf(&fs, filename)) == -1)
 		return;
 
+	if (mtype(x) == 2)
+		return;
+
 	mused(x) = 0;
 	free(flname(x));
 	if (flbuf(x))
