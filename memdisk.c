@@ -69,8 +69,9 @@ int memdisk_mkfile(char *filename)
 	int i, index=0;
 	for (i=0; i<fs.size; i++)
 	{
-		if (mused(i) = 0)
+		if (mused(i) == 0)
 		{
+			printf("gonna write to %d\n", i);
 			index = i;
 			mused(i+1) = 0;
 			break;
