@@ -1,6 +1,6 @@
 /*
  * Memdisk client
- * Compile with -lpthreads sharedmem.c
+ * Compile with -lpthread sharedmem.c
  *
  * Ilias K. Kasmeridis, 2018
  */

@@ -1,6 +1,6 @@
 /*
  * Memdisk source code
- * Compile with -lpthreads sharedmem.c memutils.c
+ * Compile with -lpthread sharedmem.c memutils.c
  *
  * Ilias K. Kasmeridis, 2018
  */
