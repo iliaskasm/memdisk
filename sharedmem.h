@@ -19,6 +19,7 @@ typedef struct shmem {
 	char **argv;
 	int value;
 	char arg1[128];
+	char arg2[128];
 	char response[1024];
 	int endofcmd;
 	int haveread;

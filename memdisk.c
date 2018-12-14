@@ -285,8 +285,12 @@ void handle(int msg)
 		case CMD(read): 
 			break;
 		case CMD(todisk):
+			memdisk_todisk(shared_mem->arg1, shared_mem->arg2);
+			shared_mem->haveread = 0;
 			break;
 		case CMD(fromdisk):
+			memdisk_fromdisk(shared_mem->arg1, shared_mem->arg2);
+			shared_mem->haveread = 0;
 			break;
 		case CMD(rm):
 			memdisk_rm(shared_mem->arg1);

@@ -19,7 +19,7 @@ shmem_t *shared_mem;
 
 int main(int argc, char *argv[]) 
 { 
-	if (argc != 3)
+	if (argc < 3)
 		return 0;
 
     shared_mem = (shmem_t*) sh_get();
@@ -27,9 +27,16 @@ int main(int argc, char *argv[])
 
     strcpy(shared_mem->arg1, argv[2]);
     shared_mem->arg1[strlen(shared_mem->arg1)] = 0;
+
+    if (argc==4)
+    {
+        strcpy(shared_mem->arg2, argv[3]);
+        shared_mem->arg2[strlen(shared_mem->arg2)] = 0;
+    }
+
     shared_mem->value = atoi(argv[1]);
-    sh_signal();
-    
+
+    sh_signal();  
     while (1)
     {	
     	if (atoi(argv[1]) == 500)
