@@ -25,8 +25,8 @@ int main(int argc, char *argv[])
     shared_mem = (shmem_t*) sh_get();
     sh_lock();
 
-    strcpy(shared_mem->cmd, argv[2]);
-    shared_mem->cmd[strlen(shared_mem->cmd)] = 0;
+    strcpy(shared_mem->arg1, argv[2]);
+    shared_mem->arg1[strlen(shared_mem->arg1)] = 0;
     shared_mem->value = atoi(argv[1]);
     sh_signal();
     

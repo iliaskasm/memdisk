@@ -13,6 +13,15 @@
 #define Create O_RDWR | O_CREAT
 #define Perm S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH
 
+#define fnex(x, filename)	int x; \
+								x=findf(&fs,filename); \
+								if (x==-1) return -1;
+#define fex(x, filename) int x; \
+								x=findf(&fs,filename); \
+								if (x!=-1) return -1;
+
+#define CMD(x) CMD_ ##x
+
 #define fl(x) fs.files[x].m
 #define flname(x) fl(x).filename
 #define flbuf(x) fl(x).buffer
@@ -27,6 +36,12 @@
 
 #define mused(x) fs.recs[x].used
 #define mtype(x) fs.recs[x].type
+
+typedef enum {
+	CMD(list) = 0, 	CMD(write), CMD(read), CMD(todisk),
+	CMD(fromdisk), CMD(rm), CMD(quota), CMD(mk),
+	CMD(mkdir), CMD(rmdir)
+} cmdval_t;
 
 typedef struct memfilecb {
 	int64_t creation;

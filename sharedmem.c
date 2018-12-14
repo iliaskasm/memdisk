@@ -30,7 +30,7 @@ void sharedmem_init(shmem_t *sharedmem)
 	sharedmem->haveread = 1;
 	sharedmem->endofcmd = 0;
 	sharedmem->value = RESETVAL;
-	strcpy(sharedmem->cmd, "nop");
+	strcpy(sharedmem->arg1, "nop");
 }
 
 void sharedmem_reset(shmem_t *sharedmem)

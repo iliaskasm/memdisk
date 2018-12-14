@@ -27,8 +27,7 @@ memfs_t fs;
 int memdisk_mkdir(char *filename)
 {
 	int status;
-	if (findf(&fs, filename) != -1)
-		return -1;
+	fex(x,filename);
 
 	/* Find the first available slot for the file */
 	int i, index=0;
@@ -59,11 +58,10 @@ int memdisk_mkdir(char *filename)
 	fs.nfiles++;
 }
 
-int memdisk_mkfile(char *filename)
+int memdisk_touch(char *filename)
 {	
 	int status;
-	if (findf(&fs, filename) != -1)
-		return -1;
+	fex(x,filename);
 
 	/* Find the first available slot for the file */
 	int i, index=0;
@@ -96,20 +94,25 @@ int memdisk_mkfile(char *filename)
 	return 1;
 }
 
-void memdisk_remove(char *filename)
+int memdisk_rm(char *filename)
 {
-	int x, status;
-	if ((x = findf(&fs, filename)) == -1)
-		return;
-
-	if (mtype(x) == 2)
-		return;
+	int status;
+	fnex(x,filename);
 
 	mused(x) = 0;
-	free(flname(x));
-	if (flbuf(x))
-		free(flbuf(x));
 
+	if (mtype(x) == 1)
+	{
+		free(flname(x));
+		if (flbuf(x))
+			free(flbuf(x));
+	}
+	else if (mtype(x) == 2)
+	{
+		free(dirname(x));
+		/* TODO: Check for files inside */
+	}
+	
 	memmove(fs.files+x, fs.files+x+1, fs.size-x);
 	memmove(fs.recs+x, fs.recs+x+1, fs.size-x);
 	fs.nfiles--;
@@ -117,9 +120,8 @@ void memdisk_remove(char *filename)
 
 int memdisk_read(char *filename, void *buf, int bytes)
 {
-	int x, status;
-	if (( x = findf(&fs, filename) ) == -1)
-		return -1;
+	int status;
+	fnex(x,filename);
 
 	memcpy(buf, flbuf(x), bytes);
 	return 1;
@@ -127,9 +129,8 @@ int memdisk_read(char *filename, void *buf, int bytes)
 
 int memdisk_write(char *filename, void *buf, int bytes)
 {
-	int x, status;
-	if (( x = findf(&fs, filename) ) == -1)
-		return -1;
+	int status;
+	fnex(x,filename);
 
 	if (flsize(x) > 0 && flsize(x) < bytes)
 		flbuf(x) = (unsigned char*) realloc(flbuf(x), bytes * sizeof(unsigned char));
@@ -179,7 +180,7 @@ void memdisk_destroy()
 	free(fs.files);
 }
 
-void memdisk_fromdisk(char *source, char *destination)
+int memdisk_fromdisk(char *source, char *destination)
 {
 	int i = 0;
 	int n;
@@ -194,16 +195,15 @@ void memdisk_fromdisk(char *source, char *destination)
 	}
 	close(fd);
 
-	memdisk_mkfile(destination);
+	memdisk_touch(destination);
 	memdisk_write(destination, buf, filesize);
 	free(buf);
 }
 
-void memdisk_todisk(char *source, char *destination)
+int memdisk_todisk(char *source, char *destination)
 {
-	int x, status;
-	if ((x = findf(&fs, source)) == -1)
-		exit(1);
+	int status;
+	fnex(x,source);
 
 	if (isbin(&fs, x))
 	{
@@ -224,7 +224,7 @@ void memdisk_todisk(char *source, char *destination)
 int memdisk_quota()
 {
 	char response[1024];
-	snprintf(shared_mem->response, 1024, "%d",
+	snprintf(shared_mem->response, 1024, "%d\n",
 		(fs.size-fs.nfiles)*sizeof(memfile_t) - fs.sizebytes);
 	shared_mem->haveread = 0;
 }
@@ -243,7 +243,7 @@ void memdisk_list()
 		printf("%d %d %d\n", mtype(i), fs.nfiles, i);
 		if (mtype(i) == 1)
 		{
-			snprintf(shared_mem->response, 1023, "[%p]"
+			snprintf(shared_mem->response, 1023, "- [%p]"
 			" "
 			"%" PRId64 ""
 			" "
@@ -254,7 +254,7 @@ void memdisk_list()
 		}
 		else 
 		{
-			snprintf(shared_mem->response, 1023, "DIR [%p]"
+			snprintf(shared_mem->response, 1023, "d [%p]"
 			" "
 			"%" PRId64 ""
 			" "
@@ -270,9 +270,9 @@ void memdisk_list()
 	}
 }
 
-void handle(int msg, char *args)
+void handle(int msg)
 {	
-	printf("Data read from memory: %d %s\n", msg, args); 
+	printf("Data read from memory: %d %s\n", msg, shared_mem->arg1); 
 	memset(shared_mem->response,0,sizeof(shared_mem->response));
 	switch(msg) 
 	{
@@ -288,17 +288,20 @@ void handle(int msg, char *args)
 			break;
 		case CMD(fromdisk):
 			break;
-		case CMD(remove):
+		case CMD(rm):
+			memdisk_rm(shared_mem->arg1);
+			shared_mem->haveread = 0;
 			break;
 		case CMD(quota):
 			memdisk_quota();
+			shared_mem->haveread = 0;
 			break;
 		case CMD(mk):
-			memdisk_mkfile(args);
+			memdisk_touch(shared_mem->arg1);
 			shared_mem->haveread = 0;
 			break;
 		case CMD(mkdir):
-			memdisk_mkdir(args);
+			memdisk_mkdir(shared_mem->arg1);
 			shared_mem->haveread = 0;
 			break;
 		default:
@@ -321,13 +324,13 @@ int main(int argc, char *argv[])
 		size*=1000000000;
 	else
 		exit(1);
-
+	fclose(stdout);
 	printf("Initializing filesystem... ");
 	memdisk_init(size);
 	printf("OK\n");
 
 	int val;
-	char cmd[1024];
+
 	shared_mem = (shmem_t*) sh_get();
 	sh_init();
     sh_lock();
@@ -343,7 +346,7 @@ int main(int argc, char *argv[])
     	val = shared_mem->value;
 
     	shared_mem->endofcmd = 0;
-    	handle(val, shared_mem->cmd);
+    	handle(val);
     	shared_mem->endofcmd = 1;
     	
     	sh_reset();

@@ -9,7 +9,7 @@
 
 #include <pthread.h>
 
-#define CMD(x) CMD_ ##x
+
 
 #define EXITVAL		500
 #define RESETVAL	-1
@@ -18,7 +18,7 @@
 typedef struct shmem {
 	char **argv;
 	int value;
-	char cmd[128];
+	char arg1[128];
 	char response[1024];
 	int endofcmd;
 	int haveread;
@@ -27,13 +27,6 @@ typedef struct shmem {
 	pthread_condattr_t attrcond;
 	pthread_mutexattr_t attrlock;
 } shmem_t;
-
-
-typedef enum {
-	CMD(list) = 0, 	CMD(write), CMD(read), CMD(todisk),
-	CMD(fromdisk), CMD(remove), CMD(quota), CMD(mk),
-	CMD(mkdir)
-} cmdval_t;
 
 shmem_t *sharedmem_get(char *file, int size);
 void sharedmem_init(shmem_t *sharedmem);
