@@ -40,15 +40,15 @@ int  sharedmem_isempty(shmem_t *sharedmem);
 void sharedmem_detach(shmem_t *sharedmem);
 void sharedmem_destroy(shmem_t *sharedmem);
 
-#define sh_get() 		sharedmem_get("shmfile", SHMEMSIZE)
-#define sh_init() 		sharedmem_init(shared_mem)
-#define sh_reset() 		sharedmem_reset(shared_mem)
-#define sh_lock()		sharedmem_lock(shared_mem)
-#define sh_unlock()		sharedmem_unlock(shared_mem)
-#define sh_wait()		sharedmem_wait(shared_mem)
-#define sh_signal()		sharedmem_signal(shared_mem)
-#define sh_isempty()	sharedmem_isempty(shared_mem)
-#define sh_detach()		sharedmem_detach(shared_mem)
-#define sh_destroy()	sharedmem_destroy(shared_mem)
+#define sh_get()        sharedmem_get("shmfile", SHMEMSIZE)
+#define sh_init()       sharedmem_init(shared_mem)
+#define sh_reset()      sharedmem_reset(shared_mem)
+#define sh_lock()       sharedmem_lock(shared_mem)
+#define sh_unlock()     sharedmem_unlock(shared_mem)
+#define sh_wait()       sharedmem_wait(shared_mem)
+#define sh_signal()     sharedmem_signal(shared_mem)
+#define sh_isempty()    sharedmem_isempty(shared_mem)
+#define sh_detach()     sharedmem_detach(shared_mem)
+#define sh_destroy()    sharedmem_destroy(shared_mem)
 
 #endif

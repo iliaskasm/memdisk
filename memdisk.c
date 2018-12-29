@@ -21,7 +21,8 @@
 struct timeval currtime;
 shmem_t *shared_mem;
 memsession_t *sessions;
-int currsessid;
+int nsessions = 0;
+int currsessid = 0;
 memfs_t fs;
 
 int memdisk_mkdir(char *filename)
@@ -165,9 +166,8 @@ void memdisk_init(int bytes)
 	sessions = (memsession_t*) malloc(10*sizeof(memsession_t));
 	for (i=0; i<10; i++)
 	{
-		sessions[i].id = -1;
-		sessions[i].currdir = (char*) malloc(256*sizeof(char));
-		strcpy(sessions[i].currdir, "");
+		sessions[i].id = NULL;
+		sessions[i].currdir = NULL;
 	}
 }
 
@@ -226,12 +226,19 @@ int memdisk_quota()
 	char response[1024];
 	snprintf(shared_mem->response, 1024, "%d\n",
 		(fs.size-fs.nfiles)*sizeof(memfile_t) - fs.sizebytes);
-	shared_mem->haveread = 0;
 }
 
 void memdisk_list()
 {
 	int i;
+
+	while (shared_mem->haveread == 0)
+		sh_wait();
+
+	snprintf(shared_mem->response, 1023, "d 4096 .\nd 4096 ..\n");
+	shared_mem->haveread = 0;
+	sh_signal();
+
 	for (i=0; i<fs.nfiles; i++)
 	{
 		while (shared_mem->haveread == 0)
@@ -268,6 +275,66 @@ void memdisk_list()
 		shared_mem->haveread = 0;
 		sh_signal();
 	}
+}
+
+void memdisk_pwd() 
+{
+	char *currdir = sessions[currsessid].currdir;
+	if (currdir == NULL)
+	{
+		snprintf(shared_mem->response, 1023, "/\n");
+		return;
+	}
+	snprintf(shared_mem->response, 1023, "%s\n", currdir);
+}
+
+// int memdisk_initclient()
+// {
+// 	int i;
+// 	for (i=0; i<nsessions; i++)
+// 	{
+// 		if (sessions[i].used == 0)
+// 		{
+// 			if (strcmp(sessions[i].id, shared_mem->arg1))
+// 			{
+// 				sessions[i].id = strdup(shared_mem->arg1);
+// 				sessions[i].used = 1;
+// 				sessions[i].currdir = strdup("/");
+// 				nsessions++;
+// 				return i;
+// 			}
+// 		}
+// 	}
+
+// 	return 0;
+// }
+
+int memdisk_cd(char *dir)
+{
+	int status;
+	fnex(x, dir);
+
+	if (mtype(x) == 1)
+	{
+		snprintf(shared_mem->response, 1023, "Not a directory.\n");
+		return -1;
+	}
+
+	sessions[currsessid].currdir = strdup(dir);
+	snprintf(shared_mem->response, 1023, "Changed dir: %s\n", sessions[currsessid].currdir);
+	return 0;
+}
+
+int memdisk_cs(int sessid)
+{
+	if (sessid>10 || sessid<0)
+	{
+		snprintf(shared_mem->response, 1023, "Membank ID must be between 0 and 10.\n");
+		return -1;
+	}
+	currsessid = sessid;
+	snprintf(shared_mem->response, 1023, "Changed to membank %d\n", currsessid);
+	return currsessid;
 }
 
 void handle(int msg)
@@ -308,6 +375,18 @@ void handle(int msg)
 			memdisk_mkdir(shared_mem->arg1);
 			shared_mem->haveread = 0;
 			break;
+		case CMD(cs):
+			memdisk_cs(atoi(shared_mem->arg1));
+			shared_mem->haveread = 0;
+			break;
+		case CMD(cd):
+			memdisk_cd(shared_mem->arg1);
+			shared_mem->haveread = 0;
+			break;
+		case CMD(pwd):
+			memdisk_pwd();
+			shared_mem->haveread = 0;
+			break;
 		default:
 			break;
 	}
@@ -337,33 +416,32 @@ int main(int argc, char *argv[])
 
 	shared_mem = (shmem_t*) sh_get();
 	sh_init();
-    sh_lock();
-    while (1)
-    {	
-    	if (val == EXITVAL)
-    		break;
+	sh_lock();
+	while (1)
+	{	
+		if (val == EXITVAL)
+			break;
 
-    	while (sh_isempty())
-    		sh_wait();
+		while (sh_isempty())
+			sh_wait();
 
+		val = shared_mem->value;
 
-    	val = shared_mem->value;
+		shared_mem->endofcmd = 0;
+		handle(val);
+		shared_mem->endofcmd = 1;
+		
+		sh_reset();
+		sh_signal();
+	}
 
-    	shared_mem->endofcmd = 0;
-    	handle(val);
-    	shared_mem->endofcmd = 1;
-    	
-    	sh_reset();
-    	sh_signal();
-    }
+	shared_mem->haveread = 0;
+	shared_mem->endofcmd = 1;
+	sh_signal();
 
-    shared_mem->haveread = 0;
-    shared_mem->endofcmd = 1;
-    sh_signal();
+	sh_unlock();
+	sh_destroy();
 
-    sh_unlock();
-    sh_destroy();
-
-    memdisk_destroy();
-    return 0; 
+	memdisk_destroy();
+	return 0; 
 }

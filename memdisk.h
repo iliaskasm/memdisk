@@ -40,7 +40,7 @@
 typedef enum {
 	CMD(list) = 0, 	CMD(write), CMD(read), CMD(todisk),
 	CMD(fromdisk), CMD(rm), CMD(quota), CMD(mk),
-	CMD(mkdir), CMD(rmdir)
+	CMD(mkdir), CMD(cs), CMD(cd), CMD(pwd)
 } cmdval_t;
 
 typedef struct memfilecb {
@@ -83,11 +83,13 @@ typedef struct filesystem {
 	int nfiles;
 	int size;
 	long int sizebytes;
+	memfolder_t *currdir;
 } memfs_t;
 
 typedef struct session {
-	int id;
 	char *currdir;
+	char *id;
+	int used;
 } memsession_t;
 
 #endif

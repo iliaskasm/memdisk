@@ -1,0 +1,3 @@
+#!/bin/bash
+
+memc 10 $1
