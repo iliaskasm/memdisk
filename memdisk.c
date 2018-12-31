@@ -32,7 +32,7 @@ int memdisk_mkdir(char *filename)
 
 	/* Find the first available slot for the file */
 	int i, index=0;
-	for (i=0; i<fs.size; i++)
+	for (i=0; i<currdir()->size; i++)
 	{
 		if (mused(i) == 0)
 		{
@@ -43,12 +43,28 @@ int memdisk_mkdir(char *filename)
 		}
 	}
 
+	/* New directory initialization */
+	dir(index) = (memfolder_t*) malloc(sizeof(memfolder_t));
+
+	if (dir(index) != &(fs.init))
+		dir(index)->files = (union nodes*) malloc(4096 * sizeof(union nodes));
+
+	dir(index)->recs = (memrecord_t*) malloc(4096 * sizeof(memrecord_t));
+	dir(index)->nfiles = 0;
+	dir(index)->parent = currdir();
+
+	/* Instead of initializing every file size, we just do
+	  it for the first one. As the table grows, we initialize
+	  the next files.*/
+	dir(index)->recs[0].used = 0;
+	dir(index)->recs[0].type = 0;
+
 	/* 
 	 * The order of the operations matters. 
 	 * We need to assure that the file accessed
 	 * is a memdir and not a memfile. 
 	 */
-	dirsize(index) = 0;
+	dirsize(index) = 4096;
 	mused(index) = 1;
 	mtype(index) = 2;
 	dirname(index) = strndup(filename, 256);
@@ -56,7 +72,9 @@ int memdisk_mkdir(char *filename)
 	gettimeofday(&currtime, NULL);
 	dircb(index).creation = (currtime.tv_sec * INT64_C(1000)) + (currtime.tv_usec / 1000);
 	dircb(index).modification = (currtime.tv_sec * INT64_C(1000)) + (currtime.tv_usec / 1000);
-	fs.nfiles++;
+	currdir()->nfiles++;
+
+	fs.sizebytes += 4096 * sizeof(union nodes) + sizeof(memfolder_t);
 }
 
 int memdisk_touch(char *filename)
@@ -66,16 +84,18 @@ int memdisk_touch(char *filename)
 
 	/* Find the first available slot for the file */
 	int i, index=0;
-	for (i=0; i<fs.size; i++)
+	for (i=0; i<currdir()->size; i++)
 	{
 		if (mused(i) == 0)
 		{
-			printf("gonna write to %d\n", i);
 			index = i;
 			mused(i+1) = 0;
 			break;
 		}
 	}
+
+	/* New file initialization */
+	fl(index) = (memfile_t*) malloc(sizeof(memfile_t));
 
 	/* 
 	 * The order of the operations matters. 
@@ -90,8 +110,9 @@ int memdisk_touch(char *filename)
 	gettimeofday(&currtime, NULL);
 	flcb(index).creation = (currtime.tv_sec * INT64_C(1000)) + (currtime.tv_usec / 1000);
 	flcb(index).modification = (currtime.tv_sec * INT64_C(1000)) + (currtime.tv_usec / 1000);
-	fs.nfiles++;
+	currdir()->nfiles++;
 
+	fs.sizebytes += sizeof(memfile_t);
 	return 1;
 }
 
@@ -101,22 +122,25 @@ int memdisk_rm(char *filename)
 	fnex(x,filename);
 
 	mused(x) = 0;
-
+	int size;
 	if (mtype(x) == 1)
 	{
+		size = sizeof(memfile_t);
 		free(flname(x));
 		if (flbuf(x))
 			free(flbuf(x));
 	}
 	else if (mtype(x) == 2)
 	{
+		size = (dirsize(x) * sizeof(union nodes)) + sizeof(memfolder_t);
 		free(dirname(x));
 		/* TODO: Check for files inside */
 	}
 	
-	memmove(fs.files+x, fs.files+x+1, fs.size-x);
-	memmove(fs.recs+x, fs.recs+x+1, fs.size-x);
-	fs.nfiles--;
+	memmove(currdir()->files+x, currdir()->files+x+1, currdir()->size-x);
+	memmove(currdir()->recs+x, currdir()->recs+x+1, currdir()->size-x);
+	currdir()->nfiles--;
+	fs.sizebytes -= size;
 }
 
 int memdisk_read(char *filename, void *buf, int bytes)
@@ -152,32 +176,38 @@ void memdisk_init(int bytes)
 	int size = bytes / sizeof(union nodes);
 	fs.size = size;
 	fs.sizebytes = 0;
-	fs.nfiles = 0;
-	fs.files = (union nodes*) malloc(size * sizeof(union nodes));
-	fs.recs = (memrecord_t*) malloc(size * sizeof(memrecord_t));
+	fs.avail = bytes;
+	// fs.files = (union nodes*) malloc(size * sizeof(union nodes));
+	fs.init.filename = strdup("init");
+	fs.init.size = 4096;
+	fs.init.files = (union nodes*) malloc(4096 * sizeof(union nodes));
+
 	int i;
+	sessions = (memsession_t*) malloc(10*sizeof(memsession_t));
+	for (i=0; i<10; i++)
+	{
+		sessions[i].id = NULL;
+		sessions[i].currdir = &(fs.init);
+	}
+	sessions[currsessid].currdir = &(fs.init);
+	sessions[currsessid].currdir->recs = (memrecord_t*) malloc(size * sizeof(memrecord_t));
+	currdir()->nfiles = 0;
+
 
 	/* Instead of initializing every file size, we just do
 	  it for the first one. As the table grows, we initialize
 	  the next files.*/
 	mused(0) = 0;
 	mtype(0) = 0;
-
-	sessions = (memsession_t*) malloc(10*sizeof(memsession_t));
-	for (i=0; i<10; i++)
-	{
-		sessions[i].id = NULL;
-		sessions[i].currdir = NULL;
-	}
 }
 
 void memdisk_destroy()
 {
 	int i;
-	for (i=0; i<fs.size; i++)
-		if (flbuf(i))
+	for (i=0; i<currdir()->size; i++)
+		if (mtype(i) == 1)
 			free(flbuf(i));
-	free(fs.files);
+	free(currdir()->files);
 }
 
 int memdisk_fromdisk(char *source, char *destination)
@@ -205,7 +235,7 @@ int memdisk_todisk(char *source, char *destination)
 	int status;
 	fnex(x,source);
 
-	if (isbin(&fs, x))
+	if (isbin(currdir(), x))
 	{
 		int fd = open(destination, Create | O_TRUNC, Perm);
 		if (flsize(x) > 0)
@@ -225,7 +255,7 @@ int memdisk_quota()
 {
 	char response[1024];
 	snprintf(shared_mem->response, 1024, "%d\n",
-		(fs.size-fs.nfiles)*sizeof(memfile_t) - fs.sizebytes);
+		(fs.avail - fs.sizebytes));
 }
 
 void memdisk_list()
@@ -239,7 +269,7 @@ void memdisk_list()
 	shared_mem->haveread = 0;
 	sh_signal();
 
-	for (i=0; i<fs.nfiles; i++)
+	for (i=0; i<currdir()->nfiles; i++)
 	{
 		while (shared_mem->haveread == 0)
 			sh_wait();
@@ -247,7 +277,7 @@ void memdisk_list()
 		if (flsize(i) == -1)
 			continue;
 
-		printf("%d %d %d\n", mtype(i), fs.nfiles, i);
+		printf("%d %d %d\n", mtype(i), currdir()->nfiles, i);
 		if (mtype(i) == 1)
 		{
 			snprintf(shared_mem->response, 1023, "- [%p]"
@@ -268,7 +298,7 @@ void memdisk_list()
 			"%6d"
 			" "
 			"%s\n", 
-			 &(dir(i)), dircb(i).modification, flsize(i), dirname(i));
+			 &(dir(i)), dircb(i).modification, dirsize(i), dirname(i));
 		}
 
 		printf("%s", shared_mem->response);
@@ -279,13 +309,13 @@ void memdisk_list()
 
 void memdisk_pwd() 
 {
-	char *currdir = sessions[currsessid].currdir;
+	memfolder_t *currdir = sessions[currsessid].currdir;
 	if (currdir == NULL)
 	{
 		snprintf(shared_mem->response, 1023, "/\n");
 		return;
 	}
-	snprintf(shared_mem->response, 1023, "%s\n", currdir);
+	snprintf(shared_mem->response, 1023, "%s\n", currdir->filename);
 }
 
 // int memdisk_initclient()
@@ -312,16 +342,35 @@ void memdisk_pwd()
 int memdisk_cd(char *dir)
 {
 	int status;
-	fnex(x, dir);
+	if (strcmp(dir, ".") == 0)
+		return 0;
 
-	if (mtype(x) == 1)
+	if (strcmp(dir, "..") == 0)
 	{
-		snprintf(shared_mem->response, 1023, "Not a directory.\n");
-		return -1;
+		if (sessions[currsessid].currdir->parent)
+			sessions[currsessid].currdir = sessions[currsessid].currdir->parent;
 	}
+	else
+	{
+		fnex(x, dir);
+		if (mtype(x) == 1)
+		{
+			snprintf(shared_mem->response, 1023, "Not a directory.\n");
+			return -1;
+		}
 
-	sessions[currsessid].currdir = strdup(dir);
-	snprintf(shared_mem->response, 1023, "Changed dir: %s\n", sessions[currsessid].currdir);
+		if (strcmp(dir, "..") == 0)
+		{
+			sessions[currsessid].currdir = sessions[currsessid].currdir->parent;
+		}
+		else
+		{
+			sessions[currsessid].currdir = dir(x);
+		}
+	}
+	
+	
+	snprintf(shared_mem->response, 1023, "Changed dir: %s\n", sessions[currsessid].currdir->filename);
 	return 0;
 }
 
@@ -407,7 +456,7 @@ int main(int argc, char *argv[])
 		size*=1000000000;
 	else
 		exit(1);
-	fclose(stdout);
+	// fclose(stdout);
 	printf("Initializing filesystem... ");
 	memdisk_init(size);
 	printf("OK\n");

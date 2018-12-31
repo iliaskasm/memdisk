@@ -16,20 +16,21 @@ char *tmpdir(char *s)
 	return strdup(x);
 }
 
-int findf(memfs_t *fs, char *filename)
+int findf(memfolder_t *folder, char *filename)
 {
 	int i;
 	int numfiles = 0;
-	for (i=0; i<fs->size; i++)
+	for (i=0; i<folder->size; i++)
 	{
-		char *fname;
-		if (fs->recs[i].used == 0)
+		char *fname = NULL;
+		// printf("%d\n", folder->recs[i].used);
+		if (folder->recs[i].used == 0)
 			continue;
 		
-		if (fs->recs[i].type == 1)
-			fname = strdup(fs->files[i].m.filename);
-		else if (fs->recs[i].type == 2)
-			fname = strdup(fs->files[i].f.filename);
+		if (folder->recs[i].type == 1)
+			fname = strdup(folder->files[i].m->filename);
+		else if (folder->recs[i].type == 2)
+			fname = strdup(folder->files[i].f->filename);
 
 		if (!fname)
 			continue;
@@ -40,12 +41,12 @@ int findf(memfs_t *fs, char *filename)
 	return -1;
 }
 
-int isbin(memfs_t *fs, int x)
+int isbin(memfolder_t *folder, int x)
 {
 	int y;
-	for (y=0; y<fs->files[x].m.size; y++)
+	for (y=0; y<folder->files[x].m->size; y++)
 	{
-		if (fs->files[x].m.buffer[y] > 127)
+		if (folder->files[x].m->buffer[y] > 127)
 			return 1;
 	}
 	return 0;

@@ -14,28 +14,28 @@
 #define Perm S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH
 
 #define fnex(x, filename)	int x; \
-								x=findf(&fs,filename); \
+								x=findf(currdir(),filename); \
 								if (x==-1) return -1;
 #define fex(x, filename) int x; \
-								x=findf(&fs,filename); \
+								x=findf(currdir(),filename); \
 								if (x!=-1) return -1;
 
 #define CMD(x) CMD_ ##x
 
-#define fl(x) fs.files[x].m
-#define flname(x) fl(x).filename
-#define flbuf(x) fl(x).buffer
-#define flcb(x) fl(x).cb
-#define flsize(x) fl(x).size
+#define currdir() sessions[currsessid].currdir
+#define dir(x) currdir()->files[x].f
+#define dirname(x) dir(x)->filename
+#define dircb(x) dir(x)->cb
+#define dirsize(x) dir(x)->size
 
-#define dir(x) fs.files[x].f
-#define dirname(x) dir(x).filename
-#define dirbuf(x) dir(x).buffer
-#define dircb(x) dir(x).cb
-#define dirsize(x) dir(x).size
+#define fl(x) currdir()->files[x].m
+#define flname(x) fl(x)->filename
+#define flbuf(x) fl(x)->buffer
+#define flcb(x) fl(x)->cb
+#define flsize(x) fl(x)->size
 
-#define mused(x) fs.recs[x].used
-#define mtype(x) fs.recs[x].type
+#define mused(x) currdir()->recs[x].used
+#define mtype(x) currdir()->recs[x].type
 
 typedef enum {
 	CMD(list) = 0, 	CMD(write), CMD(read), CMD(todisk),
@@ -50,16 +50,7 @@ typedef struct memfilecb {
 	unsigned int perms[9];
 } memcb_t;
 
-typedef struct memfolder {
-	char *filename;
-	int size;
-	struct memfolder *parent;
-	memcb_t cb;
-	union files {
-		struct memfolder *f;
-		struct memfile *file;
-	} *children;
-} memfolder_t;
+
 
 typedef struct memfile {
 	char *filename;
@@ -74,20 +65,30 @@ typedef struct record {
 	int type;
 } memrecord_t;
 
-typedef struct filesystem {
+typedef struct memfolder {
+	char *filename;
+	int size;
+	struct memfolder *parent;
+	memcb_t cb;
 	union nodes {
-		memfile_t m;
-		memfolder_t f;
+		struct memfolder *f;
+		struct memfile *m;
 	} *files;
 	memrecord_t *recs;
 	int nfiles;
+} memfolder_t;
+
+
+typedef struct filesystem {
+	memfolder_t init;
+
+	int avail;
 	int size;
 	long int sizebytes;
-	memfolder_t *currdir;
 } memfs_t;
 
 typedef struct session {
-	char *currdir;
+	memfolder_t *currdir;
 	char *id;
 	int used;
 } memsession_t;
