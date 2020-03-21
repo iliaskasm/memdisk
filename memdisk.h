@@ -34,8 +34,8 @@
 #define flcb(x) fl(x)->cb
 #define flsize(x) fl(x)->size
 
-#define mused(x) currdir()->recs[x].used
-#define mtype(x) currdir()->recs[x].type
+#define mused(x) currdir()->recs[x].used /* 0 if memory slot unavailable, 1 if available */
+#define mtype(x) currdir()->recs[x].type /* 1 for file, 2 for directory */
 
 typedef enum {
 	CMD(list) = 0, 	CMD(write), CMD(read), CMD(todisk),
@@ -49,8 +49,6 @@ typedef struct memfilecb {
 	char *owner;
 	unsigned int perms[9];
 } memcb_t;
-
-
 
 typedef struct memfile {
 	char *filename;

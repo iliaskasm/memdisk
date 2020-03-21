@@ -16,7 +16,7 @@
 #include <sys/ipc.h> 
 #include "sharedmem.h"
 #include <pthread.h>
-#include "memdisk.h"
+#include "memutils.h"
 
 struct timeval currtime;
 shmem_t *shared_mem;
@@ -28,10 +28,11 @@ memfs_t fs;
 int memdisk_mkdir(char *filename)
 {
 	int status;
+	int i, index=0;
+
 	fex(x,filename);
 
 	/* Find the first available slot for the file */
-	int i, index=0;
 	for (i=0; i<currdir()->size; i++)
 	{
 		if (mused(i) == 0)
@@ -80,10 +81,11 @@ int memdisk_mkdir(char *filename)
 int memdisk_touch(char *filename)
 {	
 	int status;
+	int i, index=0;
+
 	fex(x,filename);
 
 	/* Find the first available slot for the file */
-	int i, index=0;
 	for (i=0; i<currdir()->size; i++)
 	{
 		if (mused(i) == 0)
@@ -119,10 +121,11 @@ int memdisk_touch(char *filename)
 int memdisk_rm(char *filename)
 {
 	int status;
-	fnex(x,filename);
-
-	mused(x) = 0;
 	int size;
+
+	fnex(x,filename);
+	mused(x) = 0;
+	
 	if (mtype(x) == 1)
 	{
 		size = sizeof(memfile_t);
@@ -174,6 +177,8 @@ int memdisk_write(char *filename, void *buf, int bytes)
 void memdisk_init(int bytes)
 {
 	int size = bytes / sizeof(union nodes);
+	int i;
+
 	fs.size = size;
 	fs.sizebytes = 0;
 	fs.avail = bytes;
@@ -181,10 +186,9 @@ void memdisk_init(int bytes)
 	fs.init.filename = strdup("init");
 	fs.init.size = 4096;
 	fs.init.files = (union nodes*) malloc(4096 * sizeof(union nodes));
-
-	int i;
+	
 	sessions = (memsession_t*) malloc(10*sizeof(memsession_t));
-	for (i=0; i<10; i++)
+	for (i=0; i<10; i++) // TODO: Replace magic number with NUM_BANKS in defines
 	{
 		sessions[i].id = NULL;
 		sessions[i].currdir = &(fs.init);
@@ -196,7 +200,7 @@ void memdisk_init(int bytes)
 
 	/* Instead of initializing every file size, we just do
 	  it for the first one. As the table grows, we initialize
-	  the next files.*/
+	  the next files. */
 	mused(0) = 0;
 	mtype(0) = 0;
 }
@@ -216,8 +220,8 @@ int memdisk_fromdisk(char *source, char *destination)
 	int n;
 	int filesize = fsize(source);
 	unsigned char *buf = (unsigned char*) malloc(filesize * sizeof(unsigned char));
-
 	int fd = open(source, O_RDONLY);
+
 	while ((n=read(fd, buf, filesize)) > 0)
 	{
 		// buf[i++] = y;
@@ -443,11 +447,12 @@ void handle(int msg)
 
 int main(int argc, char *argv[])
 {
+	int val;
+	int size = atoi(argv[1]);
 
 	if (argc < 3)
 		exit(1);
 
-	int size = atoi(argv[1]);
 	if (strcmp(argv[2], "KB") == 0)
 		size*=1000;
 	else if (strcmp(argv[2], "MB") == 0)
@@ -457,11 +462,10 @@ int main(int argc, char *argv[])
 	else
 		exit(1);
 	// fclose(stdout);
+
 	printf("Initializing filesystem... ");
 	memdisk_init(size);
 	printf("OK\n");
-
-	int val;
 
 	shared_mem = (shmem_t*) sh_get();
 	sh_init();

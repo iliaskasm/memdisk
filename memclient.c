@@ -7,6 +7,7 @@
 
 #include <stdio.h> 
 #include <string.h> 
+#include <stdlib.h>
 #include <fcntl.h> 
 #include <sys/stat.h> 
 #include <sys/types.h> 
@@ -20,7 +21,10 @@ shmem_t *shared_mem;
 int main(int argc, char *argv[]) 
 { 
 	if (argc < 3)
+    {
+        printf("Syntax: %s <command> arg [args...]\n");
 		return 0;
+    }
 
     shared_mem = (shmem_t*) sh_get();
     sh_lock();

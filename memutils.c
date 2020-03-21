@@ -6,7 +6,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "memdisk.h"
+#include "memutils.h"
 #include <sys/stat.h>
 
 char *tmpdir(char *s)
