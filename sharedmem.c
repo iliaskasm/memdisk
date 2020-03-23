@@ -1,5 +1,5 @@
 /*
- * Shared memory source code
+ * Shared memory between memdisk daemon and client
  *
  * Ilias K. Kasmeridis, 2018
  */
@@ -22,21 +22,32 @@ shmem_t *sharedmem_get(char *file, int size)
 
 void sharedmem_init(shmem_t *sharedmem)
 {
+	int i;
+
 	pthread_mutexattr_init(&sharedmem->attrlock);
 	pthread_mutexattr_setpshared(&sharedmem->attrlock, PTHREAD_PROCESS_SHARED);
 	pthread_condattr_init(&sharedmem->attrcond);
 	pthread_condattr_setpshared(&sharedmem->attrcond, PTHREAD_PROCESS_SHARED);
 	pthread_mutex_init(&(sharedmem->lock), &sharedmem->attrlock);
 	pthread_cond_init(&(sharedmem->cond), &sharedmem->attrcond);
+
+	sharedmem->nargs = 0;
 	sharedmem->haveread = 1;
 	sharedmem->endofcmd = 0;
-	sharedmem->value = RESETVAL;
-	strcpy(sharedmem->arg1, "nop");
+	strcpy(sharedmem->value, RESETVAL);
+	strcpy(sharedmem->args[0], "nop");
 }
 
 void sharedmem_reset(shmem_t *sharedmem)
 {
-	sharedmem->value = RESETVAL;
+	int i;
+
+	strcpy(sharedmem->value, RESETVAL);
+	for (i=0; i<sharedmem->nargs; i++)
+	{
+		strcpy(sharedmem->args[i], "");
+	}
+	sharedmem->nargs = 0;
 	// strcpy(sharedmem->cmd, "nop");
 	// memset(sharedmem->response,0,sizeof(sharedmem->response));
 }
@@ -63,7 +74,7 @@ void sharedmem_signal(shmem_t *sharedmem)
 
 int sharedmem_isempty(shmem_t *sharedmem)
 {
-	return (sharedmem->value == RESETVAL);
+	return (strcmp(sharedmem->value, RESETVAL) == 0);
 }
 
 void sharedmem_detach(shmem_t *sharedmem)
@@ -73,11 +84,18 @@ void sharedmem_detach(shmem_t *sharedmem)
 
 void sharedmem_destroy(shmem_t *sharedmem)
 {
-	
+	int i;
+
 	pthread_cond_destroy(&(sharedmem->cond));
 	pthread_mutex_destroy(&(sharedmem->lock));
 	pthread_mutexattr_destroy(&sharedmem->attrlock);
 	pthread_condattr_destroy(&sharedmem->attrcond);
 	sharedmem_detach(sharedmem);
 	shmctl(shmid,IPC_RMID,NULL); 
+
+	for (i=0; i<sharedmem->nargs; i++)
+	{
+		strcpy(sharedmem->args[i], "");
+	}
+	sharedmem->nargs = 0;
 }

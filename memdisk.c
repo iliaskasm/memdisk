@@ -1,6 +1,5 @@
 /*
- * Memdisk source code
- * Compile with -lpthread sharedmem.c memutils.c
+ * Memdisk daemon
  *
  * Ilias K. Kasmeridis, 2018
  */
@@ -24,6 +23,11 @@ memsession_t *sessions;
 int nsessions = 0;
 int currsessid = 0;
 memfs_t fs;
+
+char *cmdstrings[] = {
+	"ls", "to", "from", "rm", "quota",
+	"touch", "mkdir", "cs", "cd", "pwd"
+};
 
 int memdisk_mkdir(char *filename)
 {
@@ -146,34 +150,6 @@ int memdisk_rm(char *filename)
 	fs.sizebytes -= size;
 }
 
-int memdisk_read(char *filename, void *buf, int bytes)
-{
-	int status;
-	fnex(x,filename);
-
-	memcpy(buf, flbuf(x), bytes);
-	return 1;
-}
-
-int memdisk_write(char *filename, void *buf, int bytes)
-{
-	int status;
-	fnex(x,filename);
-
-	if (flsize(x) > 0 && flsize(x) < bytes)
-		flbuf(x) = (unsigned char*) realloc(flbuf(x), bytes * sizeof(unsigned char));
-	else 
-		flbuf(x) = (unsigned char*) malloc(bytes * sizeof(unsigned char));
-	
-	flsize(x) = bytes;
-	fs.sizebytes += bytes;
-	memcpy(flbuf(x), buf, bytes);
-	gettimeofday(&currtime, NULL);
-	flcb(x).modification = (currtime.tv_sec * INT64_C(1000)) + (currtime.tv_usec / 1000);
-
-	return 1;
-}
-
 void memdisk_init(int bytes)
 {
 	int size = bytes / sizeof(union nodes);
@@ -265,7 +241,8 @@ int memdisk_quota()
 void memdisk_list()
 {
 	int i;
-
+	char datestring[32];
+	
 	while (shared_mem->haveread == 0)
 		sh_wait();
 
@@ -390,30 +367,33 @@ int memdisk_cs(int sessid)
 	return currsessid;
 }
 
-void handle(int msg)
+void handle(char *command)
 {	
-	printf("Data read from memory: %d %s\n", msg, shared_mem->arg1); 
+	int i, msg;
+	printf("Data read from memory: %d\n", msg); 
+	for (i=0; i<shared_mem->nargs; i++)
+	{
+		printf("\t %s\n", shared_mem->args[i]);
+	}
 	memset(shared_mem->response,0,sizeof(shared_mem->response));
+
+	msg = cmd_to_int(command);
 	switch(msg) 
 	{
 		case CMD(list):
 			memdisk_list();
 			shared_mem->haveread = 0;
 			break;
-		case CMD(write):
-			break;
-		case CMD(read): 
-			break;
 		case CMD(todisk):
-			memdisk_todisk(shared_mem->arg1, shared_mem->arg2);
+			memdisk_todisk(shared_mem->args[0], shared_mem->args[1]);
 			shared_mem->haveread = 0;
 			break;
 		case CMD(fromdisk):
-			memdisk_fromdisk(shared_mem->arg1, shared_mem->arg2);
+			memdisk_fromdisk(shared_mem->args[0], shared_mem->args[1]);
 			shared_mem->haveread = 0;
 			break;
 		case CMD(rm):
-			memdisk_rm(shared_mem->arg1);
+			memdisk_rm(shared_mem->args[0]);
 			shared_mem->haveread = 0;
 			break;
 		case CMD(quota):
@@ -421,19 +401,19 @@ void handle(int msg)
 			shared_mem->haveread = 0;
 			break;
 		case CMD(mk):
-			memdisk_touch(shared_mem->arg1);
+			memdisk_touch(shared_mem->args[0]);
 			shared_mem->haveread = 0;
 			break;
 		case CMD(mkdir):
-			memdisk_mkdir(shared_mem->arg1);
+			memdisk_mkdir(shared_mem->args[0]);
 			shared_mem->haveread = 0;
 			break;
 		case CMD(cs):
-			memdisk_cs(atoi(shared_mem->arg1));
+			memdisk_cs(atoi(shared_mem->args[0]));
 			shared_mem->haveread = 0;
 			break;
 		case CMD(cd):
-			memdisk_cd(shared_mem->arg1);
+			memdisk_cd(shared_mem->args[0]);
 			shared_mem->haveread = 0;
 			break;
 		case CMD(pwd):
@@ -447,7 +427,7 @@ void handle(int msg)
 
 int main(int argc, char *argv[])
 {
-	int val;
+	char val[16];
 	int size = atoi(argv[1]);
 
 	if (argc < 3)
@@ -472,13 +452,13 @@ int main(int argc, char *argv[])
 	sh_lock();
 	while (1)
 	{	
-		if (val == EXITVAL)
+		if (strcmp(val, EXITVAL) == 0)
 			break;
 
 		while (sh_isempty())
 			sh_wait();
 
-		val = shared_mem->value;
+		strcpy(val, shared_mem->value);
 
 		shared_mem->endofcmd = 0;
 		handle(val);

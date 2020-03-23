@@ -11,15 +11,14 @@
 
 
 
-#define EXITVAL		500
-#define RESETVAL	-1
+#define EXITVAL		"exit"
+#define RESETVAL	"reset"
 #define SHMEMSIZE	131072000
 
 typedef struct shmem {
-	char **argv;
-	int value;
-	char arg1[128];
-	char arg2[128];
+	char value[16];
+	int nargs;
+	char args[128][128];
 	char response[1024];
 	int endofcmd;
 	int haveread;

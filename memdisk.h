@@ -38,9 +38,12 @@
 #define mtype(x) currdir()->recs[x].type /* 1 for file, 2 for directory */
 
 typedef enum {
-	CMD(list) = 0, 	CMD(write), CMD(read), CMD(todisk),
-	CMD(fromdisk), CMD(rm), CMD(quota), CMD(mk),
-	CMD(mkdir), CMD(cs), CMD(cd), CMD(pwd)
+	CMD(unknown) = -1, 
+	CMD(list),  CMD(todisk), CMD(fromdisk), 
+	CMD(rm), CMD(quota), CMD(mk),
+	CMD(mkdir), CMD(cs), CMD(cd), 
+	CMD(pwd), 
+	CMD(lastcmd)
 } cmdval_t;
 
 typedef struct memfilecb {

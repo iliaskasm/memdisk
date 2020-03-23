@@ -9,9 +9,12 @@
 
 #include "memdisk.h"
 
+extern char *cmdstrings[];
+
 char *tmpdir(char *s);
 int findf(memfolder_t *folder, char *filename);
 int isbin(memfolder_t *folder, int x);
 off_t fsize(const char *filename);
+int cmd_to_int(char *command);
 
 #endif
