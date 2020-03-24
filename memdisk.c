@@ -31,7 +31,6 @@ char *cmdstrings[] = {
 
 int write_to_file(char *filename, void *buf, int bytes)
 {
-	int status;
 	CHECK_IF_NOT_EXISTS(x,filename);
 
 	if (memfilesize(x) > 0 && memfilesize(x) < bytes)
@@ -50,13 +49,12 @@ int write_to_file(char *filename, void *buf, int bytes)
 
 int memdisk_mkdir(char *filename)
 {
-	int status;
 	int i, index=0;
 
 	CHECK_IF_EXISTS(x,filename);
 
 	/* Find the first available slot for the file */
-	for (i=0; i<currdir()->size; i++)
+	for (i = 0; i < currdir()->size; i++)
 	{
 		if (memslotused(i) == MEMRECORD_SLOT_UNUSED)
 		{
@@ -106,13 +104,12 @@ int memdisk_mkdir(char *filename)
 
 int memdisk_touch(char *filename)
 {	
-	int status;
 	int i, index=0;
 
 	CHECK_IF_EXISTS(x,filename);
 
 	/* Find the first available slot for the file */
-	for (i=0; i<currdir()->size; i++)
+	for (i = 0; i < currdir()->size; i++)
 	{
 		if (memslotused(i) == MEMRECORD_SLOT_UNUSED)
 		{
@@ -148,7 +145,6 @@ int memdisk_touch(char *filename)
 
 int memdisk_rm(char *filename)
 {
-	int status;
 	int size;
 
 	CHECK_IF_NOT_EXISTS(x,filename);
@@ -190,7 +186,7 @@ void memdisk_init(int bytes)
 	fs.init.files = (union nodes*) malloc(MEMDIR_DEFAULT_SIZE * sizeof(union nodes));
 	
 	sessions = (memsession_t*) malloc(MEMSESSION_NUMBANKS * sizeof(memsession_t));
-	for (i=0; i<MEMSESSION_NUMBANKS; i++)
+	for (i = 0; i < MEMSESSION_NUMBANKS; i++)
 	{
 		sessions[i].id = NULL;
 		sessions[i].currdir = &(fs.init);
@@ -210,7 +206,7 @@ void memdisk_init(int bytes)
 void memdisk_destroy()
 {
 	int i;
-	for (i=0; i<currdir()->size; i++)
+	for (i = 0; i < currdir()->size; i++)
 		if (memslottype(i) == MEMRECORD_FILE_TYPE)
 			free(memfilebuf(i));
 	free(currdir()->files);
@@ -224,11 +220,8 @@ int memdisk_fromdisk(char *source, char *destination)
 	unsigned char *buf = (unsigned char*) malloc(filesize * sizeof(unsigned char));
 	int fd = open(source, O_RDONLY);
 
-	while ((n=read(fd, buf, filesize)) > 0)
-	{
-		// buf[i++] = y;
-		// printf("iteration %d\n", i);
-	}
+	while ((n=read(fd, buf, filesize)) > 0);
+
 	close(fd);
 
 	memdisk_touch(destination);
@@ -238,19 +231,21 @@ int memdisk_fromdisk(char *source, char *destination)
 
 int memdisk_todisk(char *source, char *destination)
 {
-	int status;
+	FILE *fp;
+	int fd;
+
 	CHECK_IF_NOT_EXISTS(x,source);
 
 	if (isbin(currdir(), x))
 	{
-		int fd = open(destination, Create | O_TRUNC, Perm);
+		fd = open(destination, Create | O_TRUNC, Perm);
 		if (memfilesize(x) > 0)
 			write(fd, memfilebuf(x), memfilesize(x));
 		close(fd);
 	}
 	else
 	{
-		FILE *fp = fopen(destination, "w");
+		fp = fopen(destination, "w");
 		if (memfilesize(x) > 0)
 			fprintf(fp, "%s", memfilebuf(x));
 		fclose(fp);
@@ -276,7 +271,7 @@ void memdisk_list()
 	shared_mem->haveread = 0;
 	sh_signal();
 
-	for (i=0; i<currdir()->nfiles; i++)
+	for (i = 0; i < currdir()->nfiles; i++)
 	{
 		while (shared_mem->haveread == 0)
 			sh_wait();
@@ -285,7 +280,7 @@ void memdisk_list()
 			continue;
 
 		printf("%d %d %d\n", memslottype(i), currdir()->nfiles, i);
-		if (memslottype(i) == 1)
+		if (memslottype(i) == MEMRECORD_FILE_TYPE)
 		{
 			snprintf(shared_mem->response, 1023, "- [%p]"
 			" "
@@ -327,7 +322,7 @@ void memdisk_pwd()
 
 int memdisk_cd(char *dir)
 {
-	int status;
+	
 	if (strcmp(dir, ".") == 0)
 		return 0;
 
@@ -339,20 +334,13 @@ int memdisk_cd(char *dir)
 	else
 	{
 		CHECK_IF_NOT_EXISTS(x, dir);
-		if (memslottype(x) == 1)
+		if (memslottype(x) == MEMRECORD_FILE_TYPE)
 		{
 			snprintf(shared_mem->response, 1023, "Not a directory.\n");
 			return -1;
 		}
 
-		if (strcmp(dir, "..") == 0)
-		{
-			sessions[currsessid].currdir = sessions[currsessid].currdir->parent;
-		}
-		else
-		{
-			sessions[currsessid].currdir = memdir(x);
-		}
+		sessions[currsessid].currdir = memdir(x);
 	}
 	
 	
@@ -362,7 +350,7 @@ int memdisk_cd(char *dir)
 
 int memdisk_cs(int sessid)
 {
-	if (sessid>MEMSESSION_NUMBANKS-1 || sessid<0)
+	if ((sessid > MEMSESSION_NUMBANKS-1) || (sessid < 0))
 	{
 		snprintf(shared_mem->response, 1023, "Membank ID must be between 0 and %d.\n", MEMSESSION_NUMBANKS-1);
 		return -1;
@@ -376,7 +364,7 @@ void handle(char *command)
 {	
 	int i, msg;
 	printf("Data read from memory: %s\n", command); 
-	for (i=0; i<shared_mem->nargs; i++)
+	for (i = 0; i < shared_mem->nargs; i++)
 	{
 		printf("\t %s\n", shared_mem->args[i]);
 	}

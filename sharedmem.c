@@ -22,8 +22,6 @@ shmem_t *sharedmem_get(char *file, int size)
 
 void sharedmem_init(shmem_t *sharedmem)
 {
-	int i;
-
 	pthread_mutexattr_init(&sharedmem->attrlock);
 	pthread_mutexattr_setpshared(&sharedmem->attrlock, PTHREAD_PROCESS_SHARED);
 	pthread_condattr_init(&sharedmem->attrcond);
@@ -43,13 +41,11 @@ void sharedmem_reset(shmem_t *sharedmem)
 	int i;
 
 	strcpy(sharedmem->command, RESETVAL);
-	for (i=0; i<sharedmem->nargs; i++)
+	for (i = 0; i < sharedmem->nargs; i++)
 	{
 		strcpy(sharedmem->args[i], "");
 	}
 	sharedmem->nargs = 0;
-	// strcpy(sharedmem->cmd, "nop");
-	// memset(sharedmem->response,0,sizeof(sharedmem->response));
 }
 
 void sharedmem_lock(shmem_t *sharedmem)
@@ -85,7 +81,7 @@ void sharedmem_detach(shmem_t *sharedmem)
 void sharedmem_destroy(shmem_t *sharedmem)
 {
 	int i;
-	for (i=0; i<sharedmem->nargs; i++)
+	for (i = 0; i < sharedmem->nargs; i++)
 	{
 		strcpy(sharedmem->args[i], "");
 	}

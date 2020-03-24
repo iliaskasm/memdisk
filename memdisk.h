@@ -13,14 +13,14 @@
 #define Create O_RDWR | O_CREAT
 #define Perm S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH
 
-#define MEMRECORD_SLOT_UNUSED		0
-#define MEMRECORD_SLOT_USED			1
+#define MEMRECORD_SLOT_UNUSED			0
+#define MEMRECORD_SLOT_USED				1
 #define MEMRECORD_UNINITIALIZED_TYPE	0
 #define MEMRECORD_FILE_TYPE				1
 #define MEMRECORD_DIR_TYPE				2
 
-#define MEMDIR_DEFAULT_SIZE		4096
-#define MEMSESSION_NUMBANKS 		11
+#define MEMDIR_DEFAULT_SIZE				4096
+#define MEMSESSION_NUMBANKS 			11
 
 #define CHECK_IF_NOT_EXISTS(x, filename)	int x = findf(currdir(),filename); \
 								if (x==-1) return -1;

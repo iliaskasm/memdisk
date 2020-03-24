@@ -23,16 +23,16 @@ int findf(memfolder_t *folder, char *filename)
 {
 	int i;
 	int numfiles = 0;
-	for (i=0; i<folder->size; i++)
+	for (i = 0; i < folder->size; i++)
 	{
 		char *fname = NULL;
 		// printf("%d\n", folder->records[i].used);
-		if (folder->records[i].used == 0)
+		if (folder->records[i].used == MEMRECORD_SLOT_UNUSED)
 			continue;
 		
-		if (folder->records[i].type == 1)
+		if (folder->records[i].type == MEMRECORD_FILE_TYPE)
 			fname = strdup(folder->files[i].m->filename);
-		else if (folder->records[i].type == 2)
+		else if (folder->records[i].type == MEMRECORD_DIR_TYPE)
 			fname = strdup(folder->files[i].f->filename);
 
 		if (!fname)
@@ -47,7 +47,7 @@ int findf(memfolder_t *folder, char *filename)
 int isbin(memfolder_t *folder, int x)
 {
 	int y;
-	for (y=0; y<folder->files[x].m->size; y++)
+	for (y = 0; y < folder->files[x].m->size; y++)
 	{
 		if (folder->files[x].m->buffer[y] > 127)
 			return 1;
@@ -68,7 +68,7 @@ off_t fsize(const char *filename)
 int cmd_to_int(char *command)
 {
 	int i;
-	for (i=0; i<CMD(lastcmd); i++)
+	for (i = 0; i < CMD(lastcmd); i++)
 	{
 		if (strcmp(command, cmdstrings[i]) == 0)
 		{

@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
 
     shared_mem->nargs = argc - 2;
 
-    for (i=0; i<shared_mem->nargs; i++)
+    for (i = 0; i < shared_mem->nargs; i++)
     {
         strcpy(shared_mem->args[i], argv[2+i]);
     }
