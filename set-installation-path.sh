@@ -12,7 +12,7 @@ else
 			echo "./set-installation-path.sh: Directory $1 does not exist. Exiting."
 		else
 			echo "./set-installation-path.sh: Directory $1 does not exist but will be created."
-			mkdir $1
+			mkdir -p $1
 			touch .installdir
 			echo $1 > .installdir
 		fi
