@@ -36,17 +36,7 @@ int main(int argc, char *argv[])
         strcpy(shared_mem->args[i], argv[2+i]);
     }
 
-
-    // strcpy(shared_mem->arg1, argv[2]);
-    // shared_mem->arg1[strlen(shared_mem->arg1)] = 0;
-
-    // if (argc==4)
-    // {
-    //     strcpy(shared_mem->arg2, argv[3]);
-    //     shared_mem->arg2[strlen(shared_mem->arg2)] = 0;
-    // }
-
-    strcpy(shared_mem->value, argv[1]);
+    strcpy(shared_mem->command, argv[1]);
 
     sh_signal();  
     while (1)

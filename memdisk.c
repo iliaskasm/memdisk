@@ -29,57 +29,79 @@ char *cmdstrings[] = {
 	"touch", "mkdir", "cs", "cd", "pwd"
 };
 
+int write_to_file(char *filename, void *buf, int bytes)
+{
+	int status;
+	CHECK_IF_NOT_EXISTS(x,filename);
+
+	if (memfilesize(x) > 0 && memfilesize(x) < bytes)
+		memfilebuf(x) = (unsigned char*) realloc(memfilebuf(x), bytes * sizeof(unsigned char));
+	else 
+		memfilebuf(x) = (unsigned char*) malloc(bytes * sizeof(unsigned char));
+	
+	memfilesize(x) = bytes;
+	fs.sizebytes += bytes;
+	memcpy(memfilebuf(x), buf, bytes);
+	gettimeofday(&currtime, NULL);
+	memfilecb(x).modification = (currtime.tv_sec * INT64_C(1000)) + (currtime.tv_usec / 1000);
+
+	return 1;
+}
+
 int memdisk_mkdir(char *filename)
 {
 	int status;
 	int i, index=0;
 
-	fex(x,filename);
+	CHECK_IF_EXISTS(x,filename);
 
 	/* Find the first available slot for the file */
 	for (i=0; i<currdir()->size; i++)
 	{
-		if (mused(i) == 0)
+		if (memslotused(i) == MEMRECORD_SLOT_UNUSED)
 		{
 			index = i;
 			// dirsize(i+1) = -1;
-			mused(i+1) = 0;
+			memslotused(i+1) = MEMRECORD_SLOT_UNUSED;
 			break;
 		}
 	}
 
 	/* New directory initialization */
-	dir(index) = (memfolder_t*) malloc(sizeof(memfolder_t));
+	memdir(index) = (memfolder_t*) malloc(sizeof(memfolder_t));
 
-	if (dir(index) != &(fs.init))
-		dir(index)->files = (union nodes*) malloc(4096 * sizeof(union nodes));
+	if (memdir(index) != &(fs.init))
+		memdir(index)->files = (union nodes*) malloc(MEMDIR_DEFAULT_SIZE * sizeof(union nodes));
 
-	dir(index)->recs = (memrecord_t*) malloc(4096 * sizeof(memrecord_t));
-	dir(index)->nfiles = 0;
-	dir(index)->parent = currdir();
+	memdir(index)->records = (memrecord_t*) malloc(MEMDIR_DEFAULT_SIZE * sizeof(memrecord_t));
+	memdir(index)->nfiles = 0;
+	memdir(index)->parent = currdir();
 
 	/* Instead of initializing every file size, we just do
 	  it for the first one. As the table grows, we initialize
 	  the next files.*/
-	dir(index)->recs[0].used = 0;
-	dir(index)->recs[0].type = 0;
+	memdir(index)->records[0].used = MEMRECORD_SLOT_UNUSED;
+	memdir(index)->records[0].type = MEMRECORD_UNINITIALIZED_TYPE;
 
 	/* 
 	 * The order of the operations matters. 
 	 * We need to assure that the file accessed
 	 * is a memdir and not a memfile. 
 	 */
-	dirsize(index) = 4096;
-	mused(index) = 1;
-	mtype(index) = 2;
-	dirname(index) = strndup(filename, 256);
+	memdirsize(index) = MEMDIR_DEFAULT_SIZE;
+	memslotused(index) = MEMRECORD_SLOT_USED;
+	memslottype(index) = MEMRECORD_DIR_TYPE;
+	memdirname(index) = strndup(filename, 256);
 
 	gettimeofday(&currtime, NULL);
-	dircb(index).creation = (currtime.tv_sec * INT64_C(1000)) + (currtime.tv_usec / 1000);
-	dircb(index).modification = (currtime.tv_sec * INT64_C(1000)) + (currtime.tv_usec / 1000);
+	memdircb(index).creation = (currtime.tv_sec * INT64_C(1000)) + (currtime.tv_usec / 1000);
+	memdircb(index).modification = (currtime.tv_sec * INT64_C(1000)) + (currtime.tv_usec / 1000);
+	memdircb(index).fmt_modification_date = (char*) malloc(32 * sizeof(char));
+	format_timeval(&currtime, memdircb(index).fmt_modification_date, 32);
 	currdir()->nfiles++;
 
-	fs.sizebytes += 4096 * sizeof(union nodes) + sizeof(memfolder_t);
+	// fs.sizebytes += 4096 * sizeof(union nodes) + sizeof(memfolder_t);
+	fs.sizebytes += MEMDIR_DEFAULT_SIZE;
 }
 
 int memdisk_touch(char *filename)
@@ -87,38 +109,40 @@ int memdisk_touch(char *filename)
 	int status;
 	int i, index=0;
 
-	fex(x,filename);
+	CHECK_IF_EXISTS(x,filename);
 
 	/* Find the first available slot for the file */
 	for (i=0; i<currdir()->size; i++)
 	{
-		if (mused(i) == 0)
+		if (memslotused(i) == MEMRECORD_SLOT_UNUSED)
 		{
 			index = i;
-			mused(i+1) = 0;
+			memslotused(i+1) = MEMRECORD_SLOT_UNUSED;
 			break;
 		}
 	}
 
 	/* New file initialization */
-	fl(index) = (memfile_t*) malloc(sizeof(memfile_t));
+	memfile(index) = (memfile_t*) malloc(sizeof(memfile_t));
 
 	/* 
 	 * The order of the operations matters. 
 	 * We need to assure that the file accessed
 	 * is a memfile and not a memdir. 
 	 */
-	flsize(index) = 0;
-	mused(index) = 1;
-	mtype(index) = 1;
-	flname(index) = strndup(filename, 256);
+	memfilesize(index) = 0;
+	memslotused(index) = MEMRECORD_SLOT_USED;
+	memslottype(index) = MEMRECORD_FILE_TYPE;
+	memfilename(index) = strndup(filename, 256);
 
 	gettimeofday(&currtime, NULL);
-	flcb(index).creation = (currtime.tv_sec * INT64_C(1000)) + (currtime.tv_usec / 1000);
-	flcb(index).modification = (currtime.tv_sec * INT64_C(1000)) + (currtime.tv_usec / 1000);
+	memfilecb(index).creation = (currtime.tv_sec * INT64_C(1000)) + (currtime.tv_usec / 1000);
+	memfilecb(index).modification = (currtime.tv_sec * INT64_C(1000)) + (currtime.tv_usec / 1000);
+	memfilecb(index).fmt_modification_date = (char*) malloc(32 * sizeof(char));
+	format_timeval(&currtime, memfilecb(index).fmt_modification_date, 32);
 	currdir()->nfiles++;
 
-	fs.sizebytes += sizeof(memfile_t);
+	// fs.sizebytes += sizeof(memfile_t);
 	return 1;
 }
 
@@ -127,25 +151,27 @@ int memdisk_rm(char *filename)
 	int status;
 	int size;
 
-	fnex(x,filename);
-	mused(x) = 0;
+	CHECK_IF_NOT_EXISTS(x,filename);
+	memslotused(x) = MEMRECORD_SLOT_UNUSED;
 	
-	if (mtype(x) == 1)
+	if (memslottype(x) == MEMRECORD_FILE_TYPE)
 	{
-		size = sizeof(memfile_t);
-		free(flname(x));
-		if (flbuf(x))
-			free(flbuf(x));
+		// size = sizeof(memfile_t);
+		size = memfilesize(x);
+		free(memfilename(x));
+		if (memfilebuf(x))
+			free(memfilebuf(x));
 	}
-	else if (mtype(x) == 2)
+	else if (memslottype(x) == MEMRECORD_DIR_TYPE)
 	{
-		size = (dirsize(x) * sizeof(union nodes)) + sizeof(memfolder_t);
-		free(dirname(x));
+		// size = (memdirsize(x) * sizeof(union nodes)) + sizeof(memfolder_t);
+		size = MEMDIR_DEFAULT_SIZE;
+		free(memdirname(x));
 		/* TODO: Check for files inside */
 	}
 	
 	memmove(currdir()->files+x, currdir()->files+x+1, currdir()->size-x);
-	memmove(currdir()->recs+x, currdir()->recs+x+1, currdir()->size-x);
+	memmove(currdir()->records+x, currdir()->records+x+1, currdir()->size-x);
 	currdir()->nfiles--;
 	fs.sizebytes -= size;
 }
@@ -155,38 +181,38 @@ void memdisk_init(int bytes)
 	int size = bytes / sizeof(union nodes);
 	int i;
 
-	fs.size = size;
+	fs.size = bytes - MEMDIR_DEFAULT_SIZE;
 	fs.sizebytes = 0;
 	fs.avail = bytes;
 	// fs.files = (union nodes*) malloc(size * sizeof(union nodes));
 	fs.init.filename = strdup("init");
-	fs.init.size = 4096;
-	fs.init.files = (union nodes*) malloc(4096 * sizeof(union nodes));
+	fs.init.size = MEMDIR_DEFAULT_SIZE;
+	fs.init.files = (union nodes*) malloc(MEMDIR_DEFAULT_SIZE * sizeof(union nodes));
 	
-	sessions = (memsession_t*) malloc(10*sizeof(memsession_t));
-	for (i=0; i<10; i++) // TODO: Replace magic number with NUM_BANKS in defines
+	sessions = (memsession_t*) malloc(MEMSESSION_NUMBANKS * sizeof(memsession_t));
+	for (i=0; i<MEMSESSION_NUMBANKS; i++)
 	{
 		sessions[i].id = NULL;
 		sessions[i].currdir = &(fs.init);
 	}
 	sessions[currsessid].currdir = &(fs.init);
-	sessions[currsessid].currdir->recs = (memrecord_t*) malloc(size * sizeof(memrecord_t));
+	sessions[currsessid].currdir->records = (memrecord_t*) malloc(size * sizeof(memrecord_t));
 	currdir()->nfiles = 0;
 
 
 	/* Instead of initializing every file size, we just do
 	  it for the first one. As the table grows, we initialize
 	  the next files. */
-	mused(0) = 0;
-	mtype(0) = 0;
+	memslotused(0) = MEMRECORD_SLOT_UNUSED;
+	memslottype(0) = MEMRECORD_UNINITIALIZED_TYPE;
 }
 
 void memdisk_destroy()
 {
 	int i;
 	for (i=0; i<currdir()->size; i++)
-		if (mtype(i) == 1)
-			free(flbuf(i));
+		if (memslottype(i) == MEMRECORD_FILE_TYPE)
+			free(memfilebuf(i));
 	free(currdir()->files);
 }
 
@@ -206,27 +232,27 @@ int memdisk_fromdisk(char *source, char *destination)
 	close(fd);
 
 	memdisk_touch(destination);
-	memdisk_write(destination, buf, filesize);
+	write_to_file(destination, buf, filesize);
 	free(buf);
 }
 
 int memdisk_todisk(char *source, char *destination)
 {
 	int status;
-	fnex(x,source);
+	CHECK_IF_NOT_EXISTS(x,source);
 
 	if (isbin(currdir(), x))
 	{
 		int fd = open(destination, Create | O_TRUNC, Perm);
-		if (flsize(x) > 0)
-			write(fd, flbuf(x), flsize(x));
+		if (memfilesize(x) > 0)
+			write(fd, memfilebuf(x), memfilesize(x));
 		close(fd);
 	}
 	else
 	{
 		FILE *fp = fopen(destination, "w");
-		if (flsize(x) > 0)
-			fprintf(fp, "%s", flbuf(x));
+		if (memfilesize(x) > 0)
+			fprintf(fp, "%s", memfilebuf(x));
 		fclose(fp);
 	}
 }
@@ -242,7 +268,7 @@ void memdisk_list()
 {
 	int i;
 	char datestring[32];
-	
+
 	while (shared_mem->haveread == 0)
 		sh_wait();
 
@@ -255,31 +281,31 @@ void memdisk_list()
 		while (shared_mem->haveread == 0)
 			sh_wait();
 
-		if (flsize(i) == -1)
+		if (memfilesize(i) == -1)
 			continue;
 
-		printf("%d %d %d\n", mtype(i), currdir()->nfiles, i);
-		if (mtype(i) == 1)
+		printf("%d %d %d\n", memslottype(i), currdir()->nfiles, i);
+		if (memslottype(i) == 1)
 		{
 			snprintf(shared_mem->response, 1023, "- [%p]"
 			" "
-			"%" PRId64 ""
+			"%s "
 			" "
 			"%6d"
 			" "
 			"%s\n", 
-			 &(fl(i)), flcb(i).modification, flsize(i), flname(i));
+			 &(memfile(i)), memfilecb(i).fmt_modification_date, memfilesize(i), memfilename(i));
 		}
 		else 
 		{
 			snprintf(shared_mem->response, 1023, "d [%p]"
 			" "
-			"%" PRId64 ""
+			"%s "
 			" "
 			"%6d"
 			" "
 			"%s\n", 
-			 &(dir(i)), dircb(i).modification, dirsize(i), dirname(i));
+			 &(memdir(i)), memdircb(i).fmt_modification_date, memdirsize(i), memdirname(i));
 		}
 
 		printf("%s", shared_mem->response);
@@ -299,27 +325,6 @@ void memdisk_pwd()
 	snprintf(shared_mem->response, 1023, "%s\n", currdir->filename);
 }
 
-// int memdisk_initclient()
-// {
-// 	int i;
-// 	for (i=0; i<nsessions; i++)
-// 	{
-// 		if (sessions[i].used == 0)
-// 		{
-// 			if (strcmp(sessions[i].id, shared_mem->arg1))
-// 			{
-// 				sessions[i].id = strdup(shared_mem->arg1);
-// 				sessions[i].used = 1;
-// 				sessions[i].currdir = strdup("/");
-// 				nsessions++;
-// 				return i;
-// 			}
-// 		}
-// 	}
-
-// 	return 0;
-// }
-
 int memdisk_cd(char *dir)
 {
 	int status;
@@ -333,8 +338,8 @@ int memdisk_cd(char *dir)
 	}
 	else
 	{
-		fnex(x, dir);
-		if (mtype(x) == 1)
+		CHECK_IF_NOT_EXISTS(x, dir);
+		if (memslottype(x) == 1)
 		{
 			snprintf(shared_mem->response, 1023, "Not a directory.\n");
 			return -1;
@@ -346,7 +351,7 @@ int memdisk_cd(char *dir)
 		}
 		else
 		{
-			sessions[currsessid].currdir = dir(x);
+			sessions[currsessid].currdir = memdir(x);
 		}
 	}
 	
@@ -357,9 +362,9 @@ int memdisk_cd(char *dir)
 
 int memdisk_cs(int sessid)
 {
-	if (sessid>10 || sessid<0)
+	if (sessid>MEMSESSION_NUMBANKS-1 || sessid<0)
 	{
-		snprintf(shared_mem->response, 1023, "Membank ID must be between 0 and 10.\n");
+		snprintf(shared_mem->response, 1023, "Membank ID must be between 0 and %d.\n", MEMSESSION_NUMBANKS-1);
 		return -1;
 	}
 	currsessid = sessid;
@@ -370,7 +375,7 @@ int memdisk_cs(int sessid)
 void handle(char *command)
 {	
 	int i, msg;
-	printf("Data read from memory: %d\n", msg); 
+	printf("Data read from memory: %s\n", command); 
 	for (i=0; i<shared_mem->nargs; i++)
 	{
 		printf("\t %s\n", shared_mem->args[i]);
@@ -427,7 +432,7 @@ void handle(char *command)
 
 int main(int argc, char *argv[])
 {
-	char val[16];
+	char cmd[16];
 	int size = atoi(argv[1]);
 
 	if (argc < 3)
@@ -447,21 +452,23 @@ int main(int argc, char *argv[])
 	memdisk_init(size);
 	printf("OK\n");
 
+	printf("Started memdisk with memory size: %s %s\n", argv[1], argv[2]);
+
 	shared_mem = (shmem_t*) sh_get();
 	sh_init();
 	sh_lock();
 	while (1)
 	{	
-		if (strcmp(val, EXITVAL) == 0)
+		if (strcmp(cmd, EXITVAL) == 0)
 			break;
 
 		while (sh_isempty())
 			sh_wait();
 
-		strcpy(val, shared_mem->value);
+		strcpy(cmd, shared_mem->command);
 
 		shared_mem->endofcmd = 0;
-		handle(val);
+		handle(cmd);
 		shared_mem->endofcmd = 1;
 		
 		sh_reset();

@@ -13,29 +13,36 @@
 #define Create O_RDWR | O_CREAT
 #define Perm S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH
 
-#define fnex(x, filename)	int x; \
-								x=findf(currdir(),filename); \
+#define MEMRECORD_SLOT_UNUSED		0
+#define MEMRECORD_SLOT_USED			1
+#define MEMRECORD_UNINITIALIZED_TYPE	0
+#define MEMRECORD_FILE_TYPE				1
+#define MEMRECORD_DIR_TYPE				2
+
+#define MEMDIR_DEFAULT_SIZE		4096
+#define MEMSESSION_NUMBANKS 		11
+
+#define CHECK_IF_NOT_EXISTS(x, filename)	int x = findf(currdir(),filename); \
 								if (x==-1) return -1;
-#define fex(x, filename) int x; \
-								x=findf(currdir(),filename); \
+#define CHECK_IF_EXISTS(x, filename) int x = findf(currdir(),filename); \
 								if (x!=-1) return -1;
 
 #define CMD(x) CMD_ ##x
 
 #define currdir() sessions[currsessid].currdir
-#define dir(x) currdir()->files[x].f
-#define dirname(x) dir(x)->filename
-#define dircb(x) dir(x)->cb
-#define dirsize(x) dir(x)->size
+#define memdir(x) currdir()->files[x].f
+#define memdirname(x) memdir(x)->filename
+#define memdircb(x) memdir(x)->cb
+#define memdirsize(x) memdir(x)->size
 
-#define fl(x) currdir()->files[x].m
-#define flname(x) fl(x)->filename
-#define flbuf(x) fl(x)->buffer
-#define flcb(x) fl(x)->cb
-#define flsize(x) fl(x)->size
+#define memfile(x) currdir()->files[x].m
+#define memfilename(x) memfile(x)->filename
+#define memfilebuf(x) memfile(x)->buffer
+#define memfilecb(x) memfile(x)->cb
+#define memfilesize(x) memfile(x)->size
 
-#define mused(x) currdir()->recs[x].used /* 0 if memory slot unavailable, 1 if available */
-#define mtype(x) currdir()->recs[x].type /* 1 for file, 2 for directory */
+#define memslotused(x) currdir()->records[x].used /* 0 if memory slot unavailable, 1 if available */
+#define memslottype(x) currdir()->records[x].type /* 1 for file, 2 for directory */
 
 typedef enum {
 	CMD(unknown) = -1, 
@@ -49,6 +56,7 @@ typedef enum {
 typedef struct memfilecb {
 	int64_t creation;
 	int64_t modification;
+	char *fmt_modification_date;
 	char *owner;
 	unsigned int perms[9];
 } memcb_t;
@@ -75,7 +83,7 @@ typedef struct memfolder {
 		struct memfolder *f;
 		struct memfile *m;
 	} *files;
-	memrecord_t *recs;
+	memrecord_t *records;
 	int nfiles;
 } memfolder_t;
 

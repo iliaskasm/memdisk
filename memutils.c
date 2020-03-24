@@ -8,6 +8,9 @@
 #include <string.h>
 #include "memutils.h"
 #include <sys/stat.h>
+#include <sys/time.h>
+#include <time.h>
+
 
 char *tmpdir(char *s)
 {
@@ -23,13 +26,13 @@ int findf(memfolder_t *folder, char *filename)
 	for (i=0; i<folder->size; i++)
 	{
 		char *fname = NULL;
-		// printf("%d\n", folder->recs[i].used);
-		if (folder->recs[i].used == 0)
+		// printf("%d\n", folder->records[i].used);
+		if (folder->records[i].used == 0)
 			continue;
 		
-		if (folder->recs[i].type == 1)
+		if (folder->records[i].type == 1)
 			fname = strdup(folder->files[i].m->filename);
-		else if (folder->recs[i].type == 2)
+		else if (folder->records[i].type == 2)
 			fname = strdup(folder->files[i].f->filename);
 
 		if (!fname)
@@ -74,4 +77,17 @@ int cmd_to_int(char *command)
 	}
 
 	return CMD(unknown);
+}
+
+ssize_t format_timeval(struct timeval *tv, char *buf, size_t sz)
+{
+	ssize_t written = -1;
+	struct tm *gm = gmtime(&tv->tv_sec);
+	int w;
+
+	if (gm)
+	{
+		written = (ssize_t)strftime(buf, sz, "%b %d\t%H:%M", gm);
+	}
+	return written;
 }

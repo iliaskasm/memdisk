@@ -34,7 +34,7 @@ void sharedmem_init(shmem_t *sharedmem)
 	sharedmem->nargs = 0;
 	sharedmem->haveread = 1;
 	sharedmem->endofcmd = 0;
-	strcpy(sharedmem->value, RESETVAL);
+	strcpy(sharedmem->command, RESETVAL);
 	strcpy(sharedmem->args[0], "nop");
 }
 
@@ -42,7 +42,7 @@ void sharedmem_reset(shmem_t *sharedmem)
 {
 	int i;
 
-	strcpy(sharedmem->value, RESETVAL);
+	strcpy(sharedmem->command, RESETVAL);
 	for (i=0; i<sharedmem->nargs; i++)
 	{
 		strcpy(sharedmem->args[i], "");
@@ -74,7 +74,7 @@ void sharedmem_signal(shmem_t *sharedmem)
 
 int sharedmem_isempty(shmem_t *sharedmem)
 {
-	return (strcmp(sharedmem->value, RESETVAL) == 0);
+	return (strcmp(sharedmem->command, RESETVAL) == 0);
 }
 
 void sharedmem_detach(shmem_t *sharedmem)
@@ -85,17 +85,15 @@ void sharedmem_detach(shmem_t *sharedmem)
 void sharedmem_destroy(shmem_t *sharedmem)
 {
 	int i;
-
+	for (i=0; i<sharedmem->nargs; i++)
+	{
+		strcpy(sharedmem->args[i], "");
+	}
+	sharedmem->nargs = 0;
 	pthread_cond_destroy(&(sharedmem->cond));
 	pthread_mutex_destroy(&(sharedmem->lock));
 	pthread_mutexattr_destroy(&sharedmem->attrlock);
 	pthread_condattr_destroy(&sharedmem->attrcond);
 	sharedmem_detach(sharedmem);
 	shmctl(shmid,IPC_RMID,NULL); 
-
-	for (i=0; i<sharedmem->nargs; i++)
-	{
-		strcpy(sharedmem->args[i], "");
-	}
-	sharedmem->nargs = 0;
 }

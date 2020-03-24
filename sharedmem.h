@@ -16,7 +16,7 @@
 #define SHMEMSIZE	131072000
 
 typedef struct shmem {
-	char value[16];
+	char command[16];
 	int nargs;
 	char args[128][128];
 	char response[1024];

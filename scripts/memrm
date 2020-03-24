@@ -1,3 +1,0 @@
-#!/bin/bash
-
-memc 5 $1

@@ -16,5 +16,6 @@ int findf(memfolder_t *folder, char *filename);
 int isbin(memfolder_t *folder, int x);
 off_t fsize(const char *filename);
 int cmd_to_int(char *command);
+ssize_t format_timeval(struct timeval *tv, char *buf, size_t sz);
 
 #endif
